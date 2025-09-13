@@ -1,7 +1,7 @@
 /*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+Copyright © 2025 bogdan alpha.re9@gmail.com
 */
-package ping_set
+package main
 
 import "ping_set/cmd"
 

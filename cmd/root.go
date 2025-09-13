@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+Copyright © 2025 bogdan alpha.re9@gmail.com
 */
 package cmd
 
@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -35,7 +36,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("Agent", "A", "", "Customs User-Agent for network requests")
+	rootCmd.PersistentFlags().StringP("agent", "a", "", "Customs User-Agent for network requests")
+	rootCmd.PersistentFlags().StringP("file", "f", "", "Path to file with urls")
 }
 
 var data = [][]string{
@@ -52,25 +54,13 @@ var r, _ = regexp.Compile(`(https?://)([[:alpha:].]+)([[:graph:]]+)`)
 
 func RunApp(cmd *cobra.Command, args []string) {
 	client := &http.Client{}
-	userAgent, userErr := cmd.PersistentFlags().GetString("Agent")
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		fmt.Println("Error reading stdin:", err)
-		os.Exit(1)
-	}
-	if (fi.Mode() & os.ModeCharDevice) != 0 {
-		fmt.Println("Stdin stream is empty.")
-		os.Exit(0)
-	}
-
-	urls := make([]string, 0)
-	if len(args) == 0 {
-		scanner := bufio.NewScanner(cmd.InOrStdin())
-		for scanner.Scan() {
-			urls = append(urls, scanner.Text())
-		}
+	userAgent, _ := cmd.Flags().GetString("agent")
+	filePath, _ := cmd.Flags().GetString("file")
+	var urls []string
+	if filePath != "" {
+		urls = urlFromFile(filePath)
 	} else {
-		fmt.Printf("Input is available only throw the stream stdin\n")
+		urls = urlFromStdin(cmd)
 	}
 
 	bar := progressbar.Default(int64(len(urls)), "Analyzing given sites")
@@ -84,7 +74,7 @@ func RunApp(cmd *cobra.Command, args []string) {
 			defer wg.Done()
 			var resp *http.Response
 			var err error
-			if userErr != nil {
+			if userAgent != "" {
 				resp, err = fetch(url, client, userAgent)
 			} else {
 				resp, err = fetch(url, client, "")
@@ -108,6 +98,45 @@ func RunApp(cmd *cobra.Command, args []string) {
 	table.Header(data[0])
 	table.Bulk(data[1:])
 	table.Render()
+}
+
+func urlFromFile(filePath string) []string {
+	urls := make([]string, 0)
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("Failed to read file %v: ", err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Scanner error: %v", err)
+	}
+
+	return urls
+}
+
+func urlFromStdin(input *cobra.Command) []string {
+	urls := make([]string, 0)
+
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		log.Printf("Error reading stdin %v: ", err)
+		os.Exit(1)
+	}
+	if (fi.Mode() & os.ModeCharDevice) != 0 {
+		log.Println("Stdin stream is empty.")
+		os.Exit(0)
+	}
+
+	scanner := bufio.NewScanner(input.InOrStdin())
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+	return urls
 }
 
 func fetch(url string, client *http.Client, customAgent string) (*http.Response, error) {
