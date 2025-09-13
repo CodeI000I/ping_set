@@ -30,10 +30,10 @@ It is recommended to store the list of input URLs in a text file, one URL per li
 Typical scenarios are shown below; if necessary, adjust the flags to suit the actual implementation of the program.
 
 ```bash
-# Example 1: reading from file via flag (not implemented yet)
+# Example 1: reading from file via flag 
 ping_set -f urls.txt
 
-# Example 2: reading from STDIN (if implemented)
+# Example 2: reading from STDIN
 cat urls.txt | ping_set
 ```
 
